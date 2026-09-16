@@ -8,4 +8,93 @@ Week-10-Lecture
  - "AI에게 생각하는 과정을 유도하는 것만으로 다단계 추론이 가능해질까?"
  - "재학습 없이 프롬프트 몇 줄로 대형 언어 모델의 논리력을 깨울 수 있을까?"
   
+## **1\. 연구 배경: "똑똑한 AI가 왜 초등 수학 문제에서 넘어질까?"**
 
+거대 언어 모델(LLM)은 번역, 요약, 문맥 생성 등 다양한 언어 작업에서 뛰어난 성능을 보였습니다. 그러나 여러 단계의 논리나 계산이 필요한 복잡한 문제(추론 문제)에서는 유독 취약했습니다.
+
+### **🤔 왜 틀렸을까?**
+
+사람은 다단계 문제를 풀 때 머릿속으로 '연습장(Scratchpad)'을 펴고 한 단계씩 중간 값을 적어가며 풉니다.
+
+반면 기존 AI(표준 프롬프팅)는 \[문제 입력\] ![][image1] \[정답 출력\]으로 한 번에 점프하려 했습니다. 즉, 생각할 시간(토큰)도 없이 즉답을 내놓다 보니 사소한 단계에서 엉뚱한 오답을 뱉어낸 것입니다.
+
+## **2\. 기존 해결책의 한계: 왜 쉬운 길을 못 찾았을까?**
+
+1. **엄청난 비용이 드는 파인튜닝 (Fine-tuning)**  
+   * AI에게 풀이 과정을 가르치려면 수만\~수십만 개의 문제마다 사람이 일일이 상세 해설(Rationale)을 작성해 모델을 재학습시켜야 했습니다. 시간과 비용이 천문학적으로 소모됩니다.  
+2. **단순 예시 제공(Standard Few-shot)의 한계**  
+   * 모델을 재학습시키지 않고 프롬프트에 예시 몇 개를 주는 방식(Few-shot)이 등장했지만, 단순히 \[질문 $\\rightarrow$ 최종 정답\] 쌍만 보여주었기 때문에 모델의 추론 체계를 근본적으로 깨우지 못했습니다. 파라미터 수를 키워도 성능 향상이 미미했습니다.
+
+## **3\. 핵심 방법론: Chain-of-Thought (CoT, 생각의 사슬)**
+
+연구진의 해결책은 단순하면서도 강력했습니다.
+
+**"모델을 다시 학습시킬 필요 없이, 질문할 때 '풀이 과정'이 담긴 예시 8개 정도만 힌트로 보여주자\!"**
+
+### **💡 논문 실제 예시 비교 (Figure 1\)**
+
+* **\[기존 표준 프롬프팅 (Standard Prompting)\]**  
+  * **예시 입력:**  
+    * Q: 로저는 테니스공 5개를 갖고 있다. 테니스공 2캔을 추가로 샀는데 각 캔에는 공이 3개씩 들어있다. 로저는 지금 공을 몇 개 갖고 있는가?  
+    * A: 정답은 11이다.  
+  * **실전 문제:**  
+    * Q: 식당에 사과가 23개 있었다. 점심을 만들 때 20개를 썼고, 6개를 새로 샀다. 지금 사과는 몇 개 있는가?  
+  * **AI 출력:** 정답은 27이다. ❌ (중간 계산 없이 숫자들을 조합해 찍음)  
+* **\[Chain-of-Thought 프롬프팅\]**  
+  * **예시 입력:**  
+    * Q: 로저는 테니스공 5개를 갖고 있다. 테니스공 2캔을 추가로 샀는데 각 캔에는 공이 3개씩 들어있다. 로저는 지금 공을 몇 개 갖고 있는가?  
+    * A: 로저는 처음에 5개로 시작했다. 공이 3개 든 캔 2개는 ![][image2]개의 테니스공이다. 따라서 ![][image3]이다. 정답은 11이다.  
+  * **실전 문제:**  
+    * Q: 식당에 사과가 23개 있었다. 점심을 만들 때 20개를 썼고, 6개를 새로 샀다. 지금 사과는 몇 개 있는가?  
+  * **AI 출력:** 식당에는 원래 사과가 23개 있었다. 점심을 만드는 데 20개를 사용했으므로 $23 \- 20 \= 3$개가 남았다. 6개를 더 샀으므로 $3 \+ 6 \= 9$개가 된다. 정답은 9이다. ⭕
+
+## **4\. 다양한 분야로의 확장 (실험 검증)**
+
+CoT는 단순 산수 문제에만 국한되지 않고, 자연어로 논리를 엮는 모든 영역에서 위력을 발휘했습니다.
+
+| 영역 | 대표 벤치마크 | 예시 문제 및 CoT의 해결 방식 |
+| :---- | :---- | :---- |
+| **수학 추론 (Arithmetic)** | GSM8K, SVAMP, ASDiv | 복잡한 문장제 수학 문제에서 단계별 식(![][image4])을 세워 오답 방지 |
+| **상식 추론 (Commonsense)** | StrategyQA, Sports, CSQA | Q: "서양배가 물에 가라앉을까?"  ![][image1] CoT: "서양배의 밀도는 약 ![][image5]이며 물보다 낮다. 물보다 밀도가 낮으면 뜨므로 답은 '아니오'다." |
+| **기호 조작 (Symbolic)** | Last Letter Concatenation, Coin Flip | Q: "동전 앞면 시작 ![][image1] A가 뒤집음 ![][image1] B는 안 뒤집음. 여전히 앞면인가?"  ![][image1] CoT: "총 1번(홀수) 뒤집혔으므로 뒷면이 됨. 답은 '아니오'." |
+
+## **5\. 논문 속 핵심 발견 및 실험 결과**
+
+### **1\) SOTA(최고 성능) 달성 및 파인튜닝 모델 압도**
+
+* 초등 문장제 수학 벤치마크인 **GSM8K**에서, 구글의 **PaLM 540B** 모델에 8개의 CoT 예시만 입력했더니 정확도가 **$17.9%$에서 $56.9%$로 3배 이상 폭증**했습니다.  
+* 이는 수만 개의 데이터로 전용 파인튜닝(Finetuned GPT-3 175B, ![][image6])을 거친 기존 최고 기록을 프롬프트 몇 줄로 갈아치운 결과입니다.
+
+### **2\) 창발적 능력 (Emergent Ability): "일정 크기 이상이어야 발현된다"**
+
+* CoT는 작은 모델(10B 이하)에서는 효과가 없거나, 오히려 성능이 떨어졌습니다(말은 그럴듯하지만 논리가 엉망인 궤변을 생성함).  
+* 모델 크기가 약 **100B(1000억 개) 파라미터 이상**으로 커지는 순간, 사슬처럼 엮인 논리를 생성하는 능력이 폭발적으로 깨어났습니다.
+
+### **3\) 왜 효과가 있을까? (어블레이션 연구 / Ablation Study)**
+
+연구진은 CoT의 어떤 요소가 성능을 올렸는지 비교 실험을 진행했습니다.
+
+* **수식만 출력하게 했을 때 (Equation only):** 언어적 맥락 이해가 빠져 복잡한 문제(GSM8K)에서 성능 개선이 거의 없었음.  
+* **점(...)만 찍어 계산 시간을 벌어줬을 때 (Variable compute):** 단순히 토큰 수만 늘린다고 추론 능력이 생기지 않음.  
+* **정답 뒤에 설명을 붙였을 때 (Reasoning after answer):** 정답을 먼저 내고 해설을 적게 하면 성능 개선이 없음. **즉, 중간 과정을 먼저 생성하는 행위 자체가 일종의 '작업 기억(Working Memory)' 역할을 함**을 입증.
+
+### **4\) 모델 디버깅 가능성 (Interpretability)**
+
+* 기존에는 AI가 오답을 내면 블랙박스 안에서 왜 틀렸는지 알 수 없었습니다.  
+* CoT를 적용하면 AI가 풀이 과정을 문장으로 보여주기 때문에 **"문해력 부족(Semantic error)"**, **"중간 단계 누락(One-step missing)"**, **"단순 계산 실수(Calculator error)"** 중 어디서 틀렸는지 사람이 바로 짚어낼 수 있습니다.
+
+## **📝 총평 및 한 줄 요약**
+
+**"복잡한 문제를 만났을 때 바로 답을 찍지 말고, 머릿속으로 차근차근 풀이 단계를 읊으며 생각하도록 유도하는 것—이것이 거대 언어 모델의 잠재력을 깨우는 열쇠다."**
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAWCAYAAADNX8xBAAAAsUlEQVR4XmNgGAWjYCgDBQUFDjk5uTRRUVEedDlSAaO8vHwr0DBjdAmSAcgQoGG9QCYLuhypgBHoxQKggXEgNlwUKCgAtEGSFKykpAQ0R24+kD1ZRUWFj0FcXJwbyKkG4lmkYqBBO4D0VyBuhruKVCArK2sCNGC1tLS0DLoc0QCoWRhoyGJFRUV5dDmSANCQLGC4RqCLkwRACRJo0FQZGRlpdDlSAaO6ujoviEaXGFwAAI2XJ3E3GnS/AAAAAElFTkSuQmCC>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFMAAAAZCAYAAABNcRIKAAADnklEQVR4Xu2XO2hUQRSG75L4QlFQ4+Jm9052swqJ+IAVbVR8hECQNEGwCKhoEYugmBDEQAQVEREEU/iIgoiFhUEFDcYHImIhFoKFjWKhRMTGIqCFkOh39s7GcbKPuxt3I3J/+LnzODNz5p8zj+s4AQIECBAgQID/BEqppbAPDtTV1R2LRqNJ26YCqGL87fA87I/H482pVGqGbVRJJJPJ+a7rHhRdYK/kbZs/gNPrMHwUi8U2kl5Negj+hN1Uh2z7cqCmpmYe492EnfX19UvwZS3p9/B+IpFYYNtXAoy9Fb5DzF3KC7YeeItAm2PbpiEVGN/BaC/ZKimrra1dRHS+pOwbdSmrSVnAOE2MN873AtlqKSN/UhYVXzos87IDP1Yw9ifG3il5giysF/eDCGvbp6EVF4NRiUqjvFcmArtMexssxkKhXW6giiiLOAUiHKc3M9YYvE16tpT59aEMqGbMK/BNJBJZrMtC5NuVF3TpxZ4EOZNw/hwr8UAZipM/LBORr2lvAyGXiQAshLLrpG/aH6W+xykgJgjpHZEWUu+YYVXB3ZEBY8bhCBzkjJwlx4745hSeQ1bIygzCMYkYu9IGNmtkMUxBixTShlxE+0RI2OkU335KyBw58B5zu8S3C96AzxE1atvnBR2s1xMZ8HubmoJORUj62U/bj7T9AvvC4fBc28aG2EmbIjic72iivlV5x8vErpA5Ke8IeiiXpd0mK+TmpNFjeN3PREyIoLR7Ai+XIqQJ2ebK2x1y6DfY9eWEIeZQ5tjR5XL0jfNtMu2zQkfURRqczXn954FevX4RgH4Sdn2xoJ82Pam7pfhTKhivRcZFyGtmuRaz4D0yISQdHHH0E0kigm3bbJlmhRbyDOxxvWfFULZLKRdos00W0TyTZIsp77jJ/RxxJt6o8irxRblQHD3HbJBXDXajpYop1343jQ9JOlNIvoPyNsMuK0whHd2edIPyKagW46ntqLHdzCfKJBC1K7Hd4Zf015Iv0vVR9wIOOsYzSIs57ubZ5iFE24PRdzjiGgc1+a98N9gNTOin1Wl7IQRFCJp+19HHW2xX6TJZ4BNaTPkTqyjkIhR/iOKY5H1dQOr3o12ctvnZLXD2YbMFmwNOjstG/vGxOd7Y2DjTrjMh2xtHnynvl7KdPk/x/SEL5fdF8Tchly8+XMWHV/iwW3lPo9c+AuOfgbwvG/R2bNUP5elEiC2/XPxBxE3TsagBAgQIECBAQfwCF2gVawbIgecAAAAASUVORK5CYII=>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF4AAAAZCAYAAAC4j5m6AAADG0lEQVR4Xu2YPWgUQRTHLySCoqAo5xFyd5O7swkiIicEJQiKH8TvQlCsBEHFIkUEhYCohaTQQhREQ8SPys4qYJFCEhD8AC2CCNoowVJBTBFE4++xszj33Ev2NuwFdf7wZ3ffzHvz5r+7b2Y3k/Hw8PDw8PDw+GfQCYwxRzs6OvJctnK5uFQqrS8WiyfkXPdPGS2M2U0+1+FN8tgiNt2pmSCPDeSxU9td5PP5JeR9DK7QbXVB4M1wGs44nIJ7dN80kcvllnKz7zLuI9jF+VqOLznu0H3Thtx8xj3L+C9ED87P6T6IvZJ+h2m7R58v8ANs1/3qAscqDm/gW/iaYJcaCuBA3hR8r2p7DMiTfg2Olcvl5WIgTn+9SacNK/w+xt8Np6JysMIfKBQKG2l/mFT4G9qeBEljWb8pJnIytEnpw3aZtrLbt5kI84oS3gV53/8rhSfxi/h9x78nm80ukwl0Nn99+QPNEF7q6gP4nuuP8IIsGLrvXEgivAiMz4id4CDXt01QZt7B05kFXFxTFx4+Q+g1cs0rvopAzwkyVK1WF+n+syGJ8PYJf2KCRX0YU5vYOd8Kv1JD9yuXGtDnvH1Y4vKx1GcdJwp2PukIL+LKjsK1EWDABDudTa7dQYvcIBnIJQns4nhH221bZOlwhP/JBLeHdusnkxmp55s2UhU+CjKQCZ7Aft0mqFQqq2m7AocUpWTJ7kjbhb06jkBuOm2jJphgNbSb38LPf0IJkZrw9qmVveqEiBnaQ+HnGlDDJtpQqRHgM5xU+HAxjks7z1YdJwqpCW+TEYca4U1Qambmqq8aSYUn8SP4TePfE9qc3GYtNdTrdfgdikvi9cbdOKQmPGgj6C0cu0ODfMBwPUaQ0fBjJi6SCm9L14Q7QRNzcU0TofBwQLe5sMJP2t8u8cDXJj5m3AQ1+zh8BZ82FMQiqfAC/LZJ8sQYhH1yDs9kFmA7iZCnGPuTqf2N8hmOh5XBPiyi2zenzw84Kf46ZiRkZyM/pOyr2JWJWQM15iO8QBZa+SFF4geZWEG3e9QBorcj/l5t9/Dw8PDw+F/wC9DyJDJO6NVFAAAAAElFTkSuQmCC>
+
+[image4]: <data:image/png;base64,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>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEsAAAAXCAYAAABDArJmAAAE7UlEQVR4Xu2YW2hcVRSGz5CqFW+tGoO5zJ6ZRFOjYCFeKEoVsRIflNoKLUZUBG2J4KVQleqDWkokiFKjiNfig0Q06IOtioIW9EErVALWgjWIovZJCyUKVkz9/jl7x5XtOZPRZLDS/PBzZq/Lvqy99trnTJLMoxaanHPXFYvFQXhfrJyHQalUWk+wNvKzwO9bIvU8LAjUg/CDrq6uk8msa2L9PLJRIGhPxcIjHj09Pcf29vYeE8sbBTLqEvgpwdoR6450aIcf6ejoOC9WNBrUrL6pRnt7+/FM5Ab4HBwql8vdxnZG+HN9l/ffpHZsM1vQbxm+oLnGugZARb2PjblADdbWW5VWKpVTmMT7cHNzc/OJGC3l95dwtfXOA3ZXwH10eBPPM+FG+MZcL4p5rWWM22J5I9Da2no6a9ijzVGboF1YVegdAuFnPBcHY9r9cC8Z1hJkWcDnXOx+YCFr1JY97XH4rQIX2/9b0P9C+nue8SqxrkEoMNadjPso4y6DI1rsYgUK4cvWUpFEPsHzWiuPsECR1w5oJ7xMdUWBvlV6azwbqE7R59PJHPZZD3TStOnEZ5Ey6Bz4UxwsnVHkv8AtVm7h0hryPRylRh3X2dl5Rltb22moCrFtBNUDYSWZuFy+/L6Yfh7X7RMbC+gGdAxjucC4HejWwYfxXxGOvxZI/07vSMjalJ3wcrX9PIUmrVVz0YSSWnMPQSnlBCuWW2BzJTaTcDt2z/LcAEfgx0ymPbYXdO2jfwzuhv30MchzAg7B17LGU03FbltcEnxfenH8Bq7CdwnPL3i+52vvPbQPwMNwi/pAtpbfT8Kf4Wpkr8LbXVpntd677RjToCirs3iSdQar6is72UvmF/BmmHDsg7zP21+qdnd390m0P/I+i+DC2MelNWMoiXYd2zXID6lPtZUttMfEkDm+nPzKeO+GjNNGuvRE/Iisy3enkjIKd2bNuwqUV7vZB2uHXWQxvTAmlXnW3uimgutrwk44HmdOAH0/FPdl/Gy9rMqjuYR1rAsyl97YuoBeScwGaK3qMzdYeUHJk1u4/EArIIf1tHKvW4Hu93BxmMwaSTKKtwKh/ovmphbMgvMXl/y1Dm1skAXfeN71BKuCwf7YMQwCN1m5BZlwPvqDGb65wWppaTkB3TtwLxxQkPDflVfjSumxfSCWhwXXXFwyx8Ey6RwfJRXvQ3oGmQotGdGa+NT1L7OfwNHEZIUP1qT1NTpNflhjadK6QRE3xXYeujW3yidWJGmN0WWyXxtuFfgsoRadqt9zGiyBjm6E32FY9iK9K21WIBQQCUzx/A0uC74MsB5+petb7ZkKvM/Gr+EdjHm9iOwqc5VPQfNxNT5v8LsI/QH6GEx8wP08X/KbMFXg4arg52oHa1oN/Bu0QAZ8BsMPcVjp0kDt4ffSYOMz8G0FRu8uQa5jhe82dLvR3ezS3R6zNhb6ZkT/lksvhmnUHOw/CqX0mh+w/jGwuQybffBz+KJL51idN/09QfsPM8brLn1F0KtKVab18Oz3z2A3kXUqLApk0dl+p5f/w79B6vVd4DdlWrb4zdJ35UEzSR2z4WJ9nzcFZdQMR/r/Bb0aEIDxYsa/juZW3KC2S78shpOMG/JogT5O7yXld5FZZwWhsgzZ/c4cX1fj8+Zogm44fQdud2mdEccUxPAfmA/eVmVi5Puf4k/gSJeWgCFOLwAAAABJRU5ErkJggg==>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAZCAYAAABdEVzWAAADNUlEQVR4Xu2WTUiUQRjHX9Gg6Jsy0d31XXe3NiH6YInoEgVJdigiCqSii4e6RQpFHxAFEpaBSfQhHoqQRIpOQUQHqUNUlwJv1aEOgUVJUR2Cst+/d2adnV3TS4do//DnneeZ52vmmZndICijjH8Tlel0elF1dfUsf8JFTU3NzFwuN83X/xWkUqm5YRjehmfhYH19/V7UFb5dPB7PyC4Wi8X9uQJkMpk5BDmAcW8ymTxJgiVBccAK5tZg0wMvYr9Tq3YN0B1m7ibDKpIuYPwInwewmXEtBS3mexSOJBKJra5vERoaGlZgOITzegLP57sP+TtsD8aLq0J/Hl2HVqkESog8jH8oAxWJfF+JbWxsjjC/TrHR7+bbYjagRzGtXUmYHfhhV6DikJ/CD7DR2DRKJvA9e3aUCI6ZJJJr4Wvtmo2tMdxiZZ09bAYnbaGA4TmToFVyNpudzfgh/KzdlI5vFnkEPleLjN9249fn+nmFHYIbjaij0DlpCy10M+rq6hYyrJSM4zISjMIh92YRdJ4jVzB/Af5UgdYmjBbZr3naPYOiLvONaY5xEzG6g8laWAq6BApMkDcEWenPG2jlm7D7CLvcK6/zFkbH4JiK4NsmvVrH+NaUWuhCB5diBlQQAV4pcWB20IXaYmzeYXPF7HQBzE41mWOgy6OL021bqHn8d8Ez6NKF3n8AQZbi9BZe958DB5UkP43NqHOGSkIF2RZqd/HpxedEGF2oPnurpwKdn344RsD9/qQFCVdj8w0O67b584LfQsZr4QsKS0kmfjM8WOgVRAdfE6J7VnSzTGHXJLOq5cg9+lqb0DwP8Cv2Oat3UNBCAds241Mr2RTeMe5ioIAK7AdXQSpMxbiyLdTzzb93LtwWWp1ZcL4wfWFX4J9nWpAIo629qt856fROEfBJGD0Zq6QzAd9r660vuj0qlu+lwHsCzE4M+i0Oo7cvX5hZ3CnXJg8mNsOXJO2ELYzvwE/SWxvz43wjjH5yWmE7/ELgAbsgB79byFyTp7cb8QxuCKKzfLyUXR4Emp6Mfit36Ldtgr8jer+EbaKS+AaC4ihhED0VRdClIc9jeBe7jglylVHG/4lfDczlFXJLv+EAAAAASUVORK5CYII=>
